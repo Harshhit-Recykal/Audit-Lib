@@ -1,23 +1,18 @@
 package com.recykal.audit.config;
 
-import com.recykal.audit.constants.Constants;
-import com.recykal.audit.dto.RabbitMQProperties;
-import com.recykal.audit.service.AuditLogging;
-import jakarta.persistence.EntityManager;
-import org.springframework.amqp.core.AmqpTemplate;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.recykal.audit.dto.AuditProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 @AutoConfiguration
 @ConditionalOnProperty(
         prefix = "audit",
         name = "enabled",
         havingValue = "true")
-@EnableConfigurationProperties({RabbitMQProperties.class})
+@EnableConfigurationProperties({AuditProperties.class})
+@Import({AuditAspectConfig.class, RabbitMQConfig.class, SerialisationConfig.class})
 public class AuditAutoConfiguration {
 
 }

@@ -2,10 +2,9 @@ package com.recykal.audit.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recykal.audit.annotations.Auditable;
-import com.recykal.audit.constants.Constants;
 import com.recykal.audit.dto.ApiResponse;
 import com.recykal.audit.dto.AuditEvent;
-import com.recykal.audit.dto.RabbitMQProperties;
+import com.recykal.audit.dto.AuditProperties;
 import com.recykal.audit.enums.ActionType;
 import com.recykal.audit.utils.CloneUtils;
 import jakarta.persistence.EntityManager;
@@ -16,6 +15,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -37,19 +37,19 @@ public class AuditLogging {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditLogging.class);
 
-    private final RabbitTemplate rabbitTemplate;
+    private final AmqpTemplate rabbitTemplate;
 
     private final EntityManager entityManager;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final RabbitMQProperties rabbitMQProperties;
+    private final AuditProperties auditProperties;
 
     @Autowired
-    public AuditLogging(RabbitTemplate rabbitTemplate, EntityManager entityManager, RabbitMQProperties rabbitMQProperties) {
+    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, AuditProperties auditProperties) {
         this.rabbitTemplate = rabbitTemplate;
         this.entityManager = entityManager;
-        this.rabbitMQProperties = rabbitMQProperties;
+        this.auditProperties = auditProperties;
     }
 
     @Around("com.recykal.audit.utils.PointcutUtils.logAroundBasedOnRequestMapping()")
@@ -98,7 +98,7 @@ public class AuditLogging {
 
             logger.debug("Publishing audit event to rabbitmq for processing with requestId: {}", event.getRequestId());
 
-            rabbitTemplate.convertAndSend(rabbitMQProperties.getExchange(), rabbitMQProperties.getRoutingKey(), event);
+            rabbitTemplate.convertAndSend(auditProperties.getRabbitmq().getExchange(), auditProperties.getRabbitmq().getRoutingKey(), event);
         }
 
         return result;
