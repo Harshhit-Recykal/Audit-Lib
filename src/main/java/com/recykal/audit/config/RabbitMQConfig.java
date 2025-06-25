@@ -8,12 +8,16 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
+
+    public RabbitMQProperties rabbitMQProperties;
+
 
     @Bean(name = Constants.RABBITMQ_CONSTANTS.QUEUE)
     public Queue auditQueue(RabbitMQProperties props) {
@@ -40,7 +44,7 @@ public class RabbitMQConfig {
     }
 
     @Bean(name = Constants.RABBITMQ_CONSTANTS.AMQ_TEMPLATE)
-    public AmqpTemplate auditRabbitTemplate(ConnectionFactory connectionFactory,
+    public RabbitTemplate auditRabbitTemplate(ConnectionFactory connectionFactory,
                                             @Qualifier(Constants.RABBITMQ_CONSTANTS.MESSAGE_CONVERTER) MessageConverter converter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(converter);

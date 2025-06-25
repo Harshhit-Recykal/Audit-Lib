@@ -1,0 +1,38 @@
+{
+  "properties": [
+    {
+      "name": "audit.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable audit module"
+    },
+    {
+      "name": "audit.rabbitmq.host",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "audit.rabbitmq.port",
+      "type": "java.lang.Integer"
+    },
+    {
+      "name": "audit.rabbitmq.username",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "audit.rabbitmq.password",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "audit.rabbitmq.exchange",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "audit.rabbitmq.routingKey",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "audit.rabbitmq.queue",
+      "type": "java.lang.String"
+    }
+  ]
+}

@@ -7,7 +7,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.recykal.audit.constants.Constants;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,10 +14,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Configuration
-public class JacksonConfig {
+public class SerialisationConfig {
 
     @Bean(name = Constants.CONFIG_CONSTANTS.AUDIT_OBJECT_MAPPER)
-    @ConditionalOnMissingBean(name = Constants.CONFIG_CONSTANTS.AUDIT_OBJECT_MAPPER)
     public ObjectMapper auditObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule()
