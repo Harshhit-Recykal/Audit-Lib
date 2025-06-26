@@ -1,5 +1,6 @@
 package com.recykal.audit.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recykal.audit.constants.Constants;
 import com.recykal.audit.dto.AuditProperties;
 import com.recykal.audit.service.AuditLogging;
@@ -16,8 +17,9 @@ public class AuditAspectConfig {
     @Bean
     public AuditLogging auditLogging(@Qualifier(Constants.RABBITMQ_CONSTANTS.AMQ_TEMPLATE) AmqpTemplate rabbitTemplate,
                                      EntityManager entityManager,
+                                     @Qualifier(Constants.CONFIG_CONSTANTS.AUDIT_OBJECT_MAPPER) ObjectMapper objectMapper,
                                      AuditProperties rabbitMQProperties) {
-        return new AuditLogging(rabbitTemplate, entityManager, rabbitMQProperties);
+        return new AuditLogging(rabbitTemplate, entityManager, objectMapper, rabbitMQProperties);
     }
 
 }

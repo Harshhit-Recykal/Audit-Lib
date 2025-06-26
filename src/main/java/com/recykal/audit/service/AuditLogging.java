@@ -2,6 +2,7 @@ package com.recykal.audit.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recykal.audit.annotations.Auditable;
+import com.recykal.audit.constants.Constants;
 import com.recykal.audit.dto.ApiResponse;
 import com.recykal.audit.dto.AuditEvent;
 import com.recykal.audit.dto.AuditProperties;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,14 +43,15 @@ public class AuditLogging {
 
     private final EntityManager entityManager;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private final AuditProperties auditProperties;
 
     @Autowired
-    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, AuditProperties auditProperties) {
+    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, ObjectMapper objectMapper, AuditProperties auditProperties) {
         this.rabbitTemplate = rabbitTemplate;
         this.entityManager = entityManager;
+        this.objectMapper = objectMapper;
         this.auditProperties = auditProperties;
     }
 
@@ -80,6 +83,8 @@ public class AuditLogging {
         Object responseBody = extractResponseBody(result);
 
         if (!Objects.equals(actionType, ActionType.UNKNOWN)) {
+
+            entityId = extractEntityId(new  Object[]{responseBody});
 
             logger.debug("Building audit event for method: {}", method.getName());
 
@@ -168,9 +173,11 @@ public class AuditLogging {
 
         if (result instanceof ResponseEntity<?> responseEntity) {
             Object body = responseEntity.getBody();
-            return (body instanceof ApiResponse<?> apiResponse) ? apiResponse.getData() : body;
+            if (body instanceof ApiResponse<?> apiResponse) {
+                return apiResponse.getData();
+            }
+            return body;
         }
-
         return result;
     }
 
