@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recykal.audit.constants.Constants;
 import com.recykal.audit.dto.AuditProperties;
 import com.recykal.audit.service.AuditLogging;
+import com.recykal.audit.service.EntityMatching;
 import jakarta.persistence.EntityManager;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -18,8 +19,9 @@ public class AuditAspectConfig {
     public AuditLogging auditLogging(@Qualifier(Constants.RABBITMQ_CONSTANTS.AMQ_TEMPLATE) AmqpTemplate rabbitTemplate,
                                      EntityManager entityManager,
                                      @Qualifier(Constants.CONFIG_CONSTANTS.AUDIT_OBJECT_MAPPER) ObjectMapper objectMapper,
-                                     AuditProperties rabbitMQProperties) {
-        return new AuditLogging(rabbitTemplate, entityManager, objectMapper, rabbitMQProperties);
+                                     AuditProperties rabbitMQProperties, AuditProperties auditProperties,
+                                     EntityMatching entityMatching) {
+        return new AuditLogging(rabbitTemplate, entityManager, objectMapper,entityMatching, auditProperties);
     }
 
 }

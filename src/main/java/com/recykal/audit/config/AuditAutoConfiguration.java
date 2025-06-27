@@ -1,6 +1,8 @@
 package com.recykal.audit.config;
 
 import com.recykal.audit.dto.AuditProperties;
+import com.recykal.audit.service.EntityMatching;
+import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -11,7 +13,7 @@ import org.springframework.context.annotation.Import;
         prefix = "audit",
         name = "enabled",
         havingValue = "true")
-@EnableConfigurationProperties({AuditProperties.class})
+@EnableConfigurationProperties({AuditProperties.class, EntityMatching.class})
 @Import({AuditAspectConfig.class, RabbitMQConfig.class, SerialisationConfig.class})
 public class AuditAutoConfiguration {
 

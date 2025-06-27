@@ -10,6 +10,7 @@ import com.recykal.audit.enums.ActionType;
 import com.recykal.audit.utils.CloneUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
+import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
@@ -38,20 +41,18 @@ import java.util.UUID;
 public class AuditLogging {
 
     private static final Logger logger = LoggerFactory.getLogger(AuditLogging.class);
-
     private final AmqpTemplate rabbitTemplate;
-
     private final EntityManager entityManager;
-
     private final ObjectMapper objectMapper;
-
+    private  final EntityMatching entityMatcher;
     private final AuditProperties auditProperties;
 
     @Autowired
-    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, ObjectMapper objectMapper, AuditProperties auditProperties) {
+    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, ObjectMapper objectMapper, EntityMatching entityMatcher, AuditProperties auditProperties) {
         this.rabbitTemplate = rabbitTemplate;
         this.entityManager = entityManager;
         this.objectMapper = objectMapper;
+        this.entityMatcher = entityMatcher;
         this.auditProperties = auditProperties;
     }
 
@@ -61,14 +62,33 @@ public class AuditLogging {
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
         Method method = methodSignature.getMethod();
 
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
         logger.info("Method: {} is intercepted by audit logging aspect", method.getName());
-
-        String entityName = extractEntityName(joinPoint.getArgs());
+        String uri = request.getRequestURI();
+//        String entityName = extractEntityName(joinPoint.getArgs());
+        String entityName = "UNKNOWN";
         String entityId = extractEntityId(joinPoint.getArgs());
+        
         ActionType actionType = determineAction(method, entityId);
 
         Object rawDataBefore = null;
 
+        if (entityName.equals("UNKNOWN") && uri != null) {
+            String[] parts = uri.split("/");
+            // parts[0] might be empty if URI starts with "/"
+            String possibleEntityName = "";
+            for (int i = 0; i < parts.length; i++) {
+                if ("api".equals(parts[i]) && i + 1 < parts.length) {
+                    entityName = parts[i + 1];
+                    possibleEntityName = parts[i + 1];
+                    break;
+                }
+            }
+            
+         entityName = entityMatcher.getEntityName(entityName);
+            logger.debug("Entity name extracted from URI: {} to: {}", uri, entityName);
+
+        }
         if (entityId != null) {
             rawDataBefore = CloneUtils.deepCopy(objectMapper, getEntityByNameAndId(entityName, entityId, entityManager));
         }
@@ -79,17 +99,12 @@ public class AuditLogging {
             logger.error("Exception occurred while proceeding with method: {}, entityName = {}, entityId = {}, e = {}", method.getName(), entityName, entityId, ex.getMessage());
             throw ex;
         }
-
+        
         Object responseBody = extractResponseBody(result);
-
         if (!Objects.equals(actionType, ActionType.UNKNOWN)) {
-
             entityId = extractEntityId(new  Object[]{responseBody});
-
             logger.debug("Building audit event for method: {}", method.getName());
-
             LocalDateTime timeStamp = extractTimestamp(responseBody, actionType).orElse(LocalDateTime.now());
-
             AuditEvent event = AuditEvent.builder()
                     .entityName(entityName)
                     .entityId(entityId)
