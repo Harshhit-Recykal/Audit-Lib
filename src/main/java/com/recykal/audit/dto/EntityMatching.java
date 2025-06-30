@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Data
-@ConfigurationProperties(prefix = "entity-matching")
+@ConfigurationProperties(prefix = "audit.entity-matching")
 public class EntityMatching {
 
     /**
