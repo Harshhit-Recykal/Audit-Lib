@@ -19,9 +19,9 @@ public class AuditAspectConfig {
     public AuditLogging auditLogging(@Qualifier(Constants.RABBITMQ_CONSTANTS.AMQ_TEMPLATE) AmqpTemplate rabbitTemplate,
                                      EntityManager entityManager,
                                      @Qualifier(Constants.CONFIG_CONSTANTS.AUDIT_OBJECT_MAPPER) ObjectMapper objectMapper,
-                                     AuditProperties rabbitMQProperties, AuditProperties auditProperties,
+                                     AuditProperties auditProperties,
                                      EntityMatching entityMatching) {
-        return new AuditLogging(rabbitTemplate, entityManager, objectMapper,entityMatching, auditProperties);
+        return new AuditLogging(rabbitTemplate, entityManager, objectMapper, entityMatching, auditProperties);
     }
 
 }
