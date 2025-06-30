@@ -52,15 +52,12 @@ audit:
 
 - The `rabbitmq` is the configuration for the message queue to which the audit event is sent.
 
-- The `entity-matching` is the mapping for the entity in the URI to the real entity name.More descriptively, we need to fetch entire detail about an object , so we need entity_id and entity_name corresponding to the JPA repository. We are assuming that the first keyword after ".../api/" in the request being sent is related to the entity. Thus this entity-matching is a global map that stores the key-value pairs where key is the possibleEntityName extracted from uri and value is the actual JPA repository with which it is associated.
-- The entity-matching module is responsible for mapping entity identifiers extracted from the request URI to their corresponding real entity names used in the application.
+- The `entity-matching` module is responsible for mapping entity identifiers extracted from the request URI to their corresponding real entity names used in the application.
 
-- In detail, when we need to retrieve full information about a specific object, we require both the entity_name and the entity_id that correspond to a JPA repository. We assume that the first path segment after /api/ in the incoming request URI represents the entity.
+- In detail, when we need to retrieve full information about a specific object, we require both the entity_name and the entity_id that correspond to a JPA repository. We assume that the first path segment after `"../api/"` in the incoming request URI represents the entity.
 
 - To support this, entity-matching maintains a global map where:
-
     Key: A possible entity name extracted from the URI (e.g., user, order, etc.)
-
     Value: The actual entity name or JPA repository class it maps to
 
 
