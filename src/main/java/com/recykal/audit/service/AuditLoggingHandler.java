@@ -56,69 +56,97 @@ public class AuditLoggingHandler {
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
         Method method = methodSignature.getMethod();
 
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        HttpServletRequest request = null;
+        try {
+            request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        } catch (Exception e) {
+            logger.warn("Unable to fetch HttpServletRequest: {}", e.getMessage());
+        }
+
         logger.info("Method: {} is intercepted by audit logging aspect", method.getName());
-        String uri = request.getRequestURI();
-        String entityName = extractEntityName(joinPoint.getArgs());
-        String entityId = extractEntityId(joinPoint.getArgs());
 
-        ActionType actionType = determineAction(method, entityId);
-
+        String uri = request != null ? request.getRequestURI() : null;
+        String entityName = "UNKNOWN";
+        String entityId = null;
         Object rawDataBefore = null;
+        ActionType actionType = ActionType.UNKNOWN;
 
-        if (entityName.equals("UNKNOWN") && uri != null) {
-            String[] parts = uri.split("/");
-            // parts[0] might be empty if URI starts with "/"
-            for (int i = 0; i < parts.length; i++) {
-                if ("api".equals(parts[i]) && i + 1 < parts.length) {
-                    entityName = parts[i + 1];
-                    break;
+        try {
+            entityName = extractEntityName(joinPoint.getArgs());
+            entityId = extractEntityId(joinPoint.getArgs());
+            actionType = determineAction(method, entityId);
+
+            if ("UNKNOWN".equals(entityName) && uri != null) {
+                String[] parts = uri.split("/");
+                for (int i = 0; i < parts.length; i++) {
+                    if ("api".equals(parts[i]) && i + 1 < parts.length) {
+                        entityName = entityMatcher.getEntityName(parts[i + 1]);
+                        break;
+                    }
                 }
+                logger.debug("Entity name extracted from URI: {} -> {}", uri, entityName);
             }
 
-            entityName = entityMatcher.getEntityName(entityName);
-            logger.debug("Entity name extracted from URI: {} to: {}", uri, entityName);
+            if (entityId != null) {
+                Object originalEntity = getEntityByNameAndId(entityName, entityId, entityManager);
+                rawDataBefore = CloneUtils.deepCopy(objectMapper, originalEntity);
+            }
 
-        }
-        if (entityId != null) {
-            rawDataBefore = CloneUtils.deepCopy(objectMapper, getEntityByNameAndId(entityName, entityId, entityManager));
+        } catch (Exception e) {
+            logger.warn("Error during entity extraction: {}", e.getMessage());
         }
 
         try {
             result = joinPoint.proceed();
         } catch (Throwable ex) {
-            logger.error("Exception occurred while proceeding with method: {}, entityName = {}, entityId = {}, e = {}", method.getName(), entityName, entityId, ex.getMessage());
+            logger.error("Exception in business method: {}, entity={}, id={}, error={}", method.getName(), entityName, entityId, ex.getMessage());
             throw ex;
         }
 
-        Object responseBody = extractResponseBody(result);
+        try {
+            Object responseBody = extractResponseBody(result);
 
-        if (!Objects.equals(actionType, ActionType.UNKNOWN)) {
-            if (Objects.isNull(entityId))
+            if (ActionType.DELETE.equals(actionType)) {
+                responseBody = null;
+            }
+
+            if (entityId == null) {
                 entityId = extractEntityId(new Object[]{responseBody});
+            }
 
-            logger.debug("Building audit event for method: {}", method.getName());
+            if (!ActionType.UNKNOWN.equals(actionType)) {
+                logger.debug("Building audit event for method: {}", method.getName());
 
-            LocalDateTime timeStamp = extractTimestamp(responseBody, actionType).orElse(LocalDateTime.now());
+                LocalDateTime timeStamp = extractTimestamp(responseBody, actionType).orElse(LocalDateTime.now());
 
-            AuditEvent event = AuditEvent.builder()
-                    .entityName(entityName)
-                    .entityId(entityId)
-                    .action(actionType.name())
-                    .timestamp(timeStamp)
-                    .rawDataBefore(rawDataBefore)
-                    .rawDataAfter(responseBody)
-                    .requestId(UUID.randomUUID().toString())
-                    .changedBy("USER")
-                    .build();
+                AuditEvent event = AuditEvent.builder()
+                        .entityName(entityName)
+                        .entityId(entityId)
+                        .action(actionType.name())
+                        .timestamp(timeStamp)
+                        .rawDataBefore(rawDataBefore)
+                        .rawDataAfter(responseBody)
+                        .requestId(UUID.randomUUID().toString())
+                        .changedBy("USER")
+                        .build();
 
-            logger.debug("Publishing audit event to rabbitmq for processing with requestId: {}", event.getRequestId());
+                logger.debug("Publishing audit event to RabbitMQ, requestId: {}", event.getRequestId());
 
-            rabbitTemplate.convertAndSend(auditProperties.getRabbitmq().getExchange(), auditProperties.getRabbitmq().getRoutingKey(), event);
+                try {
+                    rabbitTemplate.convertAndSend(auditProperties.getRabbitmq().getExchange(),
+                            auditProperties.getRabbitmq().getRoutingKey(), event);
+                } catch (Exception e) {
+                    logger.warn("Failed to publish audit event to RabbitMQ: {}", e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            logger.warn("Audit logging failed silently for method {}: {}", method.getName(), e.getMessage());
         }
 
         return result;
     }
+
 
     private ActionType determineAction(Method method, String entityId) {
 
@@ -141,7 +169,6 @@ public class AuditLoggingHandler {
         return ActionType.UNKNOWN;
     }
 
-
     private String extractEntityId(Object[] args) {
         for (Object arg : args) {
             if (arg == null) continue;
@@ -154,16 +181,12 @@ public class AuditLoggingHandler {
                 Method getIdMethod = arg.getClass().getMethod("getId");
                 Object id = getIdMethod.invoke(arg);
                 if (id != null) return String.valueOf(id);
-            } catch (NoSuchMethodException e) {
-                logger.error("No method found for extracting entity Id, e = {}", e.getMessage());
             } catch (Exception e) {
-                logger.error("Exception occurred while extracting entity Id, e = {}", e.getMessage());
-                throw new RuntimeException("Error extracting entity ID", e);
+                logger.warn("Error extracting entity ID: {}", e.getMessage());
             }
         }
         return null;
     }
-
 
     private String extractEntityName(Object[] args) {
         return Arrays.stream(args)
@@ -193,15 +216,19 @@ public class AuditLoggingHandler {
     }
 
     private Object getEntityByNameAndId(String entityName, Object id, EntityManager entityManager) {
-        Class<?> entityClass = entityManager.getMetamodel()
-                .getEntities()
-                .stream()
-                .filter(e -> e.getName().equals(entityName))
-                .findFirst()
-                .map(EntityType::getJavaType)
-                .orElseThrow(() -> new IllegalArgumentException("No such entity: " + entityName));
-
-        return entityManager.find(entityClass, id);
+        try {
+            return entityManager.getMetamodel()
+                    .getEntities()
+                    .stream()
+                    .filter(e -> e.getName().equals(entityName))
+                    .findFirst()
+                    .map(EntityType::getJavaType)
+                    .map(clazz -> entityManager.find(clazz, id))
+                    .orElse(null);
+        } catch (Exception e) {
+            logger.warn("Failed to fetch entity: {}, id: {}, error: {}", entityName, id, e.getMessage());
+            return null;
+        }
     }
 
     private Optional<LocalDateTime> extractTimestamp(Object response, ActionType actionType) {
