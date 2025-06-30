@@ -2,8 +2,5 @@ spring:
   application:
     name: audit
 
-custom:
-  map:
-    products: product_table
 
 

@@ -2,25 +2,21 @@ package com.recykal.audit.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recykal.audit.annotations.Auditable;
-import com.recykal.audit.constants.Constants;
 import com.recykal.audit.dto.ApiResponse;
 import com.recykal.audit.dto.AuditEvent;
 import com.recykal.audit.dto.AuditProperties;
+import com.recykal.audit.dto.EntityMatching;
 import com.recykal.audit.enums.ActionType;
 import com.recykal.audit.utils.CloneUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.metamodel.EntityType;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AmqpTemplate;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,19 +32,18 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-@Aspect
 @Component
-public class AuditLogging {
+public class AuditLoggingHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuditLogging.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuditLoggingHandler.class);
     private final AmqpTemplate rabbitTemplate;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
-    private  final EntityMatching entityMatcher;
+    private final EntityMatching entityMatcher;
     private final AuditProperties auditProperties;
 
     @Autowired
-    public AuditLogging(AmqpTemplate rabbitTemplate, EntityManager entityManager, ObjectMapper objectMapper, EntityMatching entityMatcher, AuditProperties auditProperties) {
+    public AuditLoggingHandler(AmqpTemplate rabbitTemplate, EntityManager entityManager, ObjectMapper objectMapper, EntityMatching entityMatcher, AuditProperties auditProperties) {
         this.rabbitTemplate = rabbitTemplate;
         this.entityManager = entityManager;
         this.objectMapper = objectMapper;
@@ -56,8 +51,7 @@ public class AuditLogging {
         this.auditProperties = auditProperties;
     }
 
-    @Around("com.recykal.audit.utils.PointcutUtils.logAroundBasedOnRequestMapping()")
-    public Object logAudit(ProceedingJoinPoint joinPoint) throws Throwable {
+    public Object handle(ProceedingJoinPoint joinPoint) throws Throwable {
         Object result = null;
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
         Method method = methodSignature.getMethod();
@@ -67,7 +61,7 @@ public class AuditLogging {
         String uri = request.getRequestURI();
         String entityName = extractEntityName(joinPoint.getArgs());
         String entityId = extractEntityId(joinPoint.getArgs());
-        
+
         ActionType actionType = determineAction(method, entityId);
 
         Object rawDataBefore = null;
@@ -81,8 +75,8 @@ public class AuditLogging {
                     break;
                 }
             }
-            
-         entityName = entityMatcher.getEntityName(entityName);
+
+            entityName = entityMatcher.getEntityName(entityName);
             logger.debug("Entity name extracted from URI: {} to: {}", uri, entityName);
 
         }
@@ -96,12 +90,12 @@ public class AuditLogging {
             logger.error("Exception occurred while proceeding with method: {}, entityName = {}, entityId = {}, e = {}", method.getName(), entityName, entityId, ex.getMessage());
             throw ex;
         }
-        
+
         Object responseBody = extractResponseBody(result);
 
         if (!Objects.equals(actionType, ActionType.UNKNOWN)) {
-            if(Objects.isNull(entityId))
-                entityId = extractEntityId(new  Object[]{responseBody});
+            if (Objects.isNull(entityId))
+                entityId = extractEntityId(new Object[]{responseBody});
 
             logger.debug("Building audit event for method: {}", method.getName());
 

@@ -1,8 +1,7 @@
 package com.recykal.audit.config;
 
 import com.recykal.audit.dto.AuditProperties;
-import com.recykal.audit.service.EntityMatching;
-import jakarta.persistence.EntityManager;
+import com.recykal.audit.dto.EntityMatching;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
