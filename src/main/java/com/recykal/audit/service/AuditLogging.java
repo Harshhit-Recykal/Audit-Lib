@@ -73,7 +73,7 @@ public class AuditLogging {
 
         Object rawDataBefore = null;
 
-        if (entityName.equals("UNKNOWN") && uri != null) {
+        if (uri != null) {
             String[] parts = uri.split("/");
             // parts[0] might be empty if URI starts with "/"
             String possibleEntityName = "";
@@ -101,10 +101,15 @@ public class AuditLogging {
         }
         
         Object responseBody = extractResponseBody(result);
+
         if (!Objects.equals(actionType, ActionType.UNKNOWN)) {
-            entityId = extractEntityId(new  Object[]{responseBody});
+            if(Objects.isNull(entityId))
+                entityId = extractEntityId(new  Object[]{responseBody});
+
             logger.debug("Building audit event for method: {}", method.getName());
+
             LocalDateTime timeStamp = extractTimestamp(responseBody, actionType).orElse(LocalDateTime.now());
+
             AuditEvent event = AuditEvent.builder()
                     .entityName(entityName)
                     .entityId(entityId)
