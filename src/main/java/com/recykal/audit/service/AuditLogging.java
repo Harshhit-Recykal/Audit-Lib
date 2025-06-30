@@ -65,22 +65,19 @@ public class AuditLogging {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
         logger.info("Method: {} is intercepted by audit logging aspect", method.getName());
         String uri = request.getRequestURI();
-//        String entityName = extractEntityName(joinPoint.getArgs());
-        String entityName = "UNKNOWN";
+        String entityName = extractEntityName(joinPoint.getArgs());
         String entityId = extractEntityId(joinPoint.getArgs());
         
         ActionType actionType = determineAction(method, entityId);
 
         Object rawDataBefore = null;
 
-        if (uri != null) {
+        if (entityName.equals("UNKNOWN") && uri != null) {
             String[] parts = uri.split("/");
             // parts[0] might be empty if URI starts with "/"
-            String possibleEntityName = "";
             for (int i = 0; i < parts.length; i++) {
                 if ("api".equals(parts[i]) && i + 1 < parts.length) {
                     entityName = parts[i + 1];
-                    possibleEntityName = parts[i + 1];
                     break;
                 }
             }
