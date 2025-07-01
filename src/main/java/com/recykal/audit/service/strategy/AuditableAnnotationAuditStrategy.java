@@ -22,7 +22,7 @@ public class AuditableAnnotationAuditStrategy implements AuditStrategy {
 
     @Override
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
-        if (auditProperties.getAuditPointcutType() != AuditPointcutType.AUDITABLE_ANNOTATION) {
+        if (auditProperties.getPointcutType() != AuditPointcutType.AUDITABLE_ANNOTATION) {
             return joinPoint.proceed();
         }
         return auditLoggingHandler.handle(joinPoint);

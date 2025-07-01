@@ -22,7 +22,7 @@ public class ServiceClassAuditStrategy implements AuditStrategy {
 
     @Override
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
-        if (auditProperties.getAuditPointcutType() != AuditPointcutType.SERVICE_CLASS) {
+        if (auditProperties.getPointcutType() != AuditPointcutType.SERVICE_CLASS) {
             return joinPoint.proceed();
         }
         return auditLoggingHandler.handle(joinPoint);

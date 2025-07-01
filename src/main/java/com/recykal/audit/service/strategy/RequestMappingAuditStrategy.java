@@ -22,7 +22,7 @@ public class RequestMappingAuditStrategy implements AuditStrategy {
 
     @Override
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
-        if (auditProperties.getAuditPointcutType() != AuditPointcutType.REQUEST_MAPPING) {
+        if (auditProperties.getPointcutType() != AuditPointcutType.REQUEST_MAPPING) {
             return joinPoint.proceed();
         }
         return auditLoggingHandler.handle(joinPoint);
